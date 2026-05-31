@@ -54,7 +54,7 @@ if _mysql_url:
             'PASSWORD': urllib.parse.unquote(_parsed.password or ''),
             'HOST': _parsed.hostname,
             'PORT': str(_parsed.port or 3306),
-            'OPTIONS': {'charset': 'utf8mb4', 'ssl_disabled': True},
+            'OPTIONS': {'charset': 'utf8mb4'},
         }
     }
 else:
@@ -66,7 +66,7 @@ else:
             'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', 'localhost'),
             'PORT': os.getenv('DB_PORT', '3306'),
-            'OPTIONS': {'charset': 'utf8mb4', 'ssl_disabled': True},
+            'OPTIONS': {'charset': 'utf8mb4'},
         }
     }
 
