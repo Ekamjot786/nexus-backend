@@ -1,8 +1,9 @@
+import uuid
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .models import Conversation, Message
+from .models import Conversation, Message, GroupTask
 from .serializers import ConversationSerializer, MessageSerializer
 from users.serializers import UserSerializer
 
@@ -79,3 +80,90 @@ def list_messages(request, conv_id):
     except Conversation.DoesNotExist:
         return Response({'error': 'Access denied'}, status=403)
     return Response(MessageSerializer(conv.messages.all(), many=True).data)
+
+
+# --- Invite links ---
+
+@api_view(['POST'])
+def generate_invite(request, conv_id):
+    try:
+        conv = Conversation.objects.get(id=conv_id, members=request.user, is_group=True)
+    except Conversation.DoesNotExist:
+        return Response({'error': 'Not found'}, status=404)
+    if not conv.invite_code:
+        conv.invite_code = uuid.uuid4().hex[:12]
+        conv.save()
+    return Response({'invite_code': conv.invite_code})
+
+
+@api_view(['GET'])
+def invite_info(request, code):
+    try:
+        conv = Conversation.objects.get(invite_code=code, is_group=True)
+    except Conversation.DoesNotExist:
+        return Response({'error': 'Invalid invite link'}, status=404)
+    return Response({'id': conv.id, 'name': conv.name, 'member_count': conv.members.count()})
+
+
+@api_view(['POST'])
+def join_via_invite(request, code):
+    try:
+        conv = Conversation.objects.get(invite_code=code, is_group=True)
+    except Conversation.DoesNotExist:
+        return Response({'error': 'Invalid invite link'}, status=404)
+    if not conv.members.filter(id=request.user.id).exists():
+        conv.members.add(request.user)
+        notify_members([m.id for m in conv.members.all()], conv.id)
+    return Response({'id': conv.id, 'name': conv.name})
+
+
+# --- Group calendar tasks ---
+
+@api_view(['GET'])
+def list_tasks(request, conv_id):
+    try:
+        conv = Conversation.objects.get(id=conv_id, members=request.user)
+    except Conversation.DoesNotExist:
+        return Response({'error': 'Not found'}, status=404)
+    tasks = conv.tasks.prefetch_related('assigned_to').all()
+    data = [{
+        'id': t.id,
+        'title': t.title,
+        'due_date': t.due_date,
+        'assigned_to': list(t.assigned_to.values('id', 'username', 'color')),
+        'created_by': t.created_by.username if t.created_by else None,
+    } for t in tasks]
+    return Response(data)
+
+
+@api_view(['POST'])
+def create_task(request, conv_id):
+    try:
+        conv = Conversation.objects.get(id=conv_id, members=request.user)
+    except Conversation.DoesNotExist:
+        return Response({'error': 'Not found'}, status=404)
+    title = request.data.get('title', '').strip()
+    due_date = request.data.get('due_date')
+    assigned_ids = request.data.get('assigned_to', [])
+    if not title or not due_date:
+        return Response({'error': 'title and due_date required'}, status=400)
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    task = GroupTask.objects.create(conversation=conv, title=title, due_date=due_date, created_by=request.user)
+    if assigned_ids:
+        task.assigned_to.set(User.objects.filter(id__in=assigned_ids))
+    return Response({
+        'id': task.id, 'title': task.title, 'due_date': task.due_date,
+        'assigned_to': list(task.assigned_to.values('id', 'username', 'color')),
+        'created_by': request.user.username,
+    }, status=201)
+
+
+@api_view(['DELETE'])
+def delete_task(request, task_id):
+    try:
+        task = GroupTask.objects.get(id=task_id, conversation__members=request.user)
+    except GroupTask.DoesNotExist:
+        return Response({'error': 'Not found'}, status=404)
+    task.delete()
+    return Response({'success': True})
