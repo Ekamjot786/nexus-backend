@@ -5,4 +5,5 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 EXPOSE 8000
-CMD python manage.py migrate && exec daphne -v 2 -b 0.0.0.0 -p ${PORT:-8000} nexus_project.asgi:application
+ENV PYTHONUNBUFFERED=1
+CMD exec daphne -b 0.0.0.0 -p ${PORT:-8000} nexus_project.asgi:application
