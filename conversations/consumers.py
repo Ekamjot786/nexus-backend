@@ -76,6 +76,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'conversationId': event['conversationId'],
         }))
 
+    async def new_task(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'new_task',
+            'conversationId': event['conversationId'],
+            'task': event['task'],
+        }))
+
     # --- DB helpers ---
     @database_sync_to_async
     def get_conversation_ids(self):

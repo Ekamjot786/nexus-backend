@@ -153,6 +153,24 @@ def create_task(request, conv_id):
     task = GroupTask.objects.create(conversation=conv, title=title, due_date=due_date, created_by=request.user)
     if assigned_ids:
         task.assigned_to.set(User.objects.filter(id__in=assigned_ids))
+
+    # Notify all group members via WebSocket
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f'conv_{conv.id}',
+        {
+            'type': 'new_task',
+            'conversationId': conv.id,
+            'task': {
+                'id': task.id,
+                'title': task.title,
+                'due_date': str(task.due_date),
+                'created_by': request.user.username,
+                'assigned_to': list(task.assigned_to.values('id', 'username', 'color')),
+            }
+        }
+    )
+
     return Response({
         'id': task.id, 'title': task.title, 'due_date': task.due_date,
         'assigned_to': list(task.assigned_to.values('id', 'username', 'color')),
