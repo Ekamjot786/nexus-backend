@@ -84,7 +84,13 @@ SIMPLE_JWT = {
 
 CHANNEL_LAYERS = {'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'}}
 
-CORS_ALLOWED_ORIGINS = [os.getenv('FRONTEND_URL', 'http://localhost:5173')]
+_frontend_url = os.getenv('FRONTEND_URL', '')
+CORS_ALLOWED_ORIGINS = list(filter(None, [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://nexus-frontend-8rp6.vercel.app',
+    _frontend_url,
+]))
 CORS_ALLOW_CREDENTIALS = True
 
 STATIC_URL = '/static/'
