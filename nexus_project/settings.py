@@ -88,9 +88,9 @@ _frontend_url = os.getenv('FRONTEND_URL', '')
 CORS_ALLOWED_ORIGINS = list(filter(None, [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://nexus-frontend-8rp6.vercel.app',
     _frontend_url,
 ]))
+CORS_ALLOWED_ORIGIN_REGEXES = [r'^https://.*\.vercel\.app$']
 CORS_ALLOW_CREDENTIALS = True
 
 STATIC_URL = '/static/'
