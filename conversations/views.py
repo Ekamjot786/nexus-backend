@@ -154,6 +154,27 @@ def create_task(request, conv_id):
     if assigned_ids:
         task.assigned_to.set(User.objects.filter(id__in=assigned_ids))
 
+    # Post a system message to the group chat
+    assigned = list(task.assigned_to.values_list('username', flat=True))
+    assigned_str = f" · Assigned to: {', '.join(assigned)}" if assigned else ''
+    system_msg = Message.objects.create(
+        conversation=conv,
+        sender=None,
+        is_ai=True,
+        content=f"📅 {request.user.username} added a new task: \"{title}\" — Due {due_date}{assigned_str}"
+    )
+    from .serializers import MessageSerializer
+    from channels.layers import get_channel_layer as gcl
+    channel_layer2 = get_channel_layer()
+    async_to_sync(channel_layer2.group_send)(
+        f'conv_{conv.id}',
+        {
+            'type': 'chat_message',
+            'conversationId': conv.id,
+            'message': MessageSerializer(system_msg).data,
+        }
+    )
+
     # Notify all group members via WebSocket
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
