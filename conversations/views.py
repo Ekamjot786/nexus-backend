@@ -1,5 +1,5 @@
 import uuid
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
@@ -97,6 +97,7 @@ def generate_invite(request, conv_id):
 
 
 @api_view(['GET'])
+@permission_classes([])
 def invite_info(request, code):
     try:
         conv = Conversation.objects.get(invite_code=code, is_group=True)
