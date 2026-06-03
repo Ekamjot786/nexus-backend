@@ -5,7 +5,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .models import Conversation, Message, GroupTask
 from .serializers import ConversationSerializer, MessageSerializer
-from users.serializers import UserSerializer
+from users.serializers import UserSerializer, PublicUserSerializer
 
 def notify_members(member_ids, conv_id):
     channel_layer = get_channel_layer()
@@ -71,7 +71,7 @@ def get_members(request, conv_id):
         conv = Conversation.objects.get(id=conv_id, members=request.user)
     except Conversation.DoesNotExist:
         return Response({'error': 'Not found'}, status=404)
-    return Response(UserSerializer(conv.members.all(), many=True).data)
+    return Response(PublicUserSerializer(conv.members.all(), many=True).data)
 
 @api_view(['GET'])
 def list_messages(request, conv_id):

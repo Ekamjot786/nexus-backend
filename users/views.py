@@ -5,7 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.db.models import Q
 from .models import User
-from .serializers import UserSerializer, RegisterSerializer
+from .serializers import UserSerializer, RegisterSerializer, PublicUserSerializer
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
@@ -44,6 +44,8 @@ def me(request):
 
 @api_view(['GET'])
 def search_users(request):
-    q = request.query_params.get('q', '')
-    users = User.objects.filter(username__icontains=q).exclude(id=request.user.id)[:10]
-    return Response(UserSerializer(users, many=True).data)
+    q = request.query_params.get('q', '').strip()
+    if len(q) < 2:
+        return Response([])
+    users = User.objects.filter(username__icontains=q, is_active=True).exclude(id=request.user.id)[:10]
+    return Response(PublicUserSerializer(users, many=True).data)
