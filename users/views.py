@@ -45,7 +45,7 @@ def me(request):
 @api_view(['GET'])
 def search_users(request):
     q = request.query_params.get('q', '').strip()
-    if len(q) < 2:
+    if len(q) < 3:
         return Response([])
     users = User.objects.filter(username__icontains=q, is_active=True).exclude(id=request.user.id)[:10]
     return Response(PublicUserSerializer(users, many=True).data)
